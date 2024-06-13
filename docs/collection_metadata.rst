@@ -35,7 +35,7 @@ If the ``meta/execution-environment.yml`` file is not present, by default, Ansib
 Dependency introspection
 ========================
 
-If any dependencies are given, the introspection is run by Ansible Builder so that the requirements are found and sanitized (deduped) before container image assembly.
+If any dependencies are given, the introspection is run by Ansible Builder so that the requirements are found before container image assembly.
 
 A user can see the introspection output during
 the builder intermediate phase using the ``build -v3`` option.
@@ -63,12 +63,10 @@ Run the ``introspect`` command against your collection path:
 
 ::
 
-    ansible-builder introspect --sanitize COLLECTION_PATH
+    ansible-builder introspect COLLECTION_PATH
 
 The default collection path used by the ``ansible-galaxy`` command is ``~/.ansible/collections/``.
 Read more about collection paths in the `Ansible configuration settings <https://docs.ansible.com/ansible/latest/reference_appendices/config.html#collections-paths>`_ guide.
-
-The ``--sanitize`` option reviews all of the collection requirements and removes duplicates. It also removes any Python requirements that should normally be excluded (see :ref:`python_deps` below).
 
 .. note::
     Use the ``-v3`` option to ``introspect`` to see logging messages about requirements that are being excluded.
@@ -94,20 +92,28 @@ Then, if the ``ansible_collection`` directory is in your home directory, you can
 
 ::
 
-  ansible-builder introspect --sanitize ~/
+  ansible-builder introspect ~/
 
 .. _python_deps:
 
 Python Dependencies
 ^^^^^^^^^^^^^^^^^^^
 
-Ansible Builder combines all the Python requirements files from all collections into a single file using the ``requirements-parser`` library. This library supports complex syntax, including references to other files.
+Ansible Builder combines all the Python requirements files from all collections into a single file.
 
-If multiple collections require the same *package name*, Ansible Builder combines them into a single entry and combines the constraints.
+Certain package names are specifically *ignored* by ``ansible-builder``, meaning that Ansible Builder
+does not include them in the combined file of Python dependencies, even if a collection lists them as
+dependencies. These include test packages and packages that provide Ansible itself. The full list can
+be found in ``EXCLUDE_REQUIREMENTS`` in ``src/ansible_builder/_target_scripts/introspect.py``.
 
-Certain package names are specifically *ignored* by ``ansible-builder``, meaning that Ansible Builder does not include them in the combined file of Python dependencies, even if a collection lists them as dependencies. These include test packages and packages that provide Ansible itself. The full list can be found in ``EXCLUDE_REQUIREMENTS`` in ``src/ansible_builder/_target_scripts/introspect.py``.
+If you need to include one of these ignored package names, use the ``--user-pip`` option of the
+``introspect`` command to list it in the user requirements file. Packages supplied this way are
+not processed against the list of excluded Python packages.
 
-If you need to include one of these ignored package names, use the ``--user-pip`` option of the ``introspect`` command to list it in the user requirements file. Packages supplied this way are not processed against the list of excluded Python packages.
+.. note::
+
+  These dependencies are subject to the same `PEP 508 <https://peps.python.org/pep-0508/>`_ format
+  restrictions described for Python requirements in the :ref:`EE definition specification <python-pep508>`.
 
 System-level Dependencies
 ^^^^^^^^^^^^^^^^^^^^^^^^^

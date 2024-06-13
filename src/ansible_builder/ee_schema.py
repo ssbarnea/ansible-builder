@@ -272,6 +272,33 @@ schema_v3 = {
                         {"required": ["package_pip"]},
                     ],
                 },
+                "exclude": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "python": {
+                            "description": "A list of python package names",
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "system": {
+                            "description": "A list of system package names",
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "all_from_collections": {
+                            "description": "A list of collection names",
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                    },
+                },
             },
         },
 

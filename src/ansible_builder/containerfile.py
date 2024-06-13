@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.resources
 import logging
 import os
+import tempfile
 
 from pathlib import Path
 
@@ -144,7 +145,7 @@ class Containerfile:
         self._insert_global_args()
 
         if image == "base":
-            self.steps.append("RUN $PYCMD -m pip install --no-cache-dir bindep pyyaml requirements-parser")
+            self.steps.append("RUN $PYCMD -m pip install --no-cache-dir bindep pyyaml packaging")
         else:
             # For an EE schema earlier than v3 with a custom builder image, we always make sure pip is available.
             context_dir = Path(self.build_outputs_dir).stem
@@ -254,21 +255,36 @@ class Containerfile:
         scripts_dir = str(Path(self.build_outputs_dir) / 'scripts')
         os.makedirs(scripts_dir, exist_ok=True)
 
+        # For the python, system, and galaxy requirements, get a file path to the contents and copy
+        # it into the context directory with an expected name to later be used during the container builds.
+        # The get_dep_abs_path() handles parsing the various requirements and any exclusions, if any.
         for item, new_name in constants.CONTEXT_FILES.items():
-            # HACK: new dynamic base/builder
-            if not new_name:
-                continue
+            for exclude in (False, True):
+                if exclude is True:
+                    new_name = f'exclude-{new_name}'
+                requirement_path = self.definition.get_dep_abs_path(item, exclude=exclude)
+                if requirement_path is None:
+                    continue
+                dest = os.path.join(
+                    self.build_context, constants.user_content_subfolder, new_name)
 
-            requirement_path = self.definition.get_dep_abs_path(item)
-            if requirement_path is None:
-                continue
-            dest = os.path.join(
-                self.build_context, constants.user_content_subfolder, new_name)
+                # Ignore modification time of the requirement file because we could
+                # be writing it out dynamically (inline EE reqs), and we only care
+                # about the contents anyway.
+                copy_file(requirement_path, dest, ignore_mtime=True)
 
-            # Ignore modification time of the requirement file because we could
-            # be writing it out dynamically (inline EE reqs), and we only care
-            # about the contents anyway.
-            copy_file(requirement_path, dest, ignore_mtime=True)
+        # We need to handle dependencies.exclude.all_from_collections independently since
+        # it doesn't follow the same model as the other dependency requirements.
+        exclude_deps = self.definition.dependencies.get('exclude')
+        if exclude_deps and 'all_from_collections' in exclude_deps:
+            collection_ignore_list = exclude_deps['all_from_collections']
+            dest = os.path.join(self.build_context,
+                                constants.user_content_subfolder,
+                                constants.EXCL_COLLECTIONS_FILENAME)
+            with tempfile.NamedTemporaryFile('w') as fp:
+                fp.write('\n'.join(collection_ignore_list))
+                fp.flush()
+                copy_file(fp.name, dest, ignore_mtime=True)
 
         if self.original_galaxy_keyring:
             copy_file(
@@ -384,7 +400,12 @@ class Containerfile:
         ])
 
     def _prepare_build_context(self) -> None:
-        if any(self.definition.get_dep_abs_path(thing) for thing in ('galaxy', 'system', 'python')):
+        deps: list[str] = []
+        for exclude in (False, True):
+            deps.extend(
+                self.definition.get_dep_abs_path(thing, exclude=exclude) for thing in ('galaxy', 'system', 'python')
+            )
+        if any(deps):
             self.steps.extend([
                 f"COPY {constants.user_content_subfolder} /build",
                 "WORKDIR /build",
@@ -393,7 +414,7 @@ class Containerfile:
 
     def _prepare_galaxy_install_steps(self) -> None:
         env = ""
-        install_opts = (f"-r {constants.CONTEXT_FILES['galaxy']} "
+        install_opts = (f"-r {constants.STD_GALAXY_FILENAME} "
                         f"--collections-path \"{constants.base_collections_path}\"")
 
         if self.galaxy_ignore_signature_status_codes:
@@ -415,35 +436,54 @@ class Containerfile:
 
         self.steps.append(
             f"RUN ansible-galaxy role install $ANSIBLE_GALAXY_CLI_ROLE_OPTS "
-            f"-r {constants.CONTEXT_FILES['galaxy']}"
+            f"-r {constants.STD_GALAXY_FILENAME}"
             f" --roles-path \"{constants.base_roles_path}\"",
         )
         step = f"RUN {env}ansible-galaxy collection install $ANSIBLE_GALAXY_CLI_COLLECTION_OPTS {install_opts}"
         self.steps.append(step)
 
+    def _add_copy_for_file(self, filename: str) -> bool:
+        """
+        If the given file exists within the context build directory, add a COPY command to the
+        instruction file steps.
+
+        :param str filename: The base requirement filename to check.
+
+        :return: True if file exists and COPY command was added, False otherwise.
+        """
+        file_exists = os.path.exists(os.path.join(self.build_outputs_dir, filename))
+        if file_exists:
+            relative_path = os.path.join(constants.user_content_subfolder, filename)
+            # WORKDIR is /build, so we use the (shorter) relative paths there
+            self.steps.append(f"COPY {relative_path} {filename}")
+            return True
+        return False
+
     def _prepare_introspect_assemble_steps(self) -> None:
         # The introspect/assemble block is valid if there are any form of requirements
-        if any(self.definition.get_dep_abs_path(thing) for thing in ('galaxy', 'system', 'python')):
+        deps: list[str] = []
+        for exclude in (False, True):
+            deps.extend(
+                self.definition.get_dep_abs_path(thing, exclude=exclude) for thing in ('galaxy', 'system', 'python')
+            )
 
-            introspect_cmd = "RUN $PYCMD /output/scripts/introspect.py introspect --sanitize"
+        if any(deps):
+            introspect_cmd = "RUN $PYCMD /output/scripts/introspect.py introspect"
 
-            requirements_file_exists = os.path.exists(os.path.join(
-                self.build_outputs_dir, constants.CONTEXT_FILES['python']
-            ))
+            for option, exc_option, req_file in (
+                ('--user-pip', '--exclude-pip-reqs', constants.STD_PIP_FILENAME),
+                ('--user-bindep', '--exclude-bindep-reqs', constants.STD_BINDEP_FILENAME)
+            ):
+                if self._add_copy_for_file(req_file):
+                    introspect_cmd += f" {option}={req_file}"
 
-            if requirements_file_exists:
-                relative_requirements_path = os.path.join(
-                    constants.user_content_subfolder,
-                    constants.CONTEXT_FILES['python']
-                )
-                self.steps.append(f"COPY {relative_requirements_path} {constants.CONTEXT_FILES['python']}")
-                # WORKDIR is /build, so we use the (shorter) relative paths there
-                introspect_cmd += f" --user-pip={constants.CONTEXT_FILES['python']}"
-            bindep_exists = os.path.exists(os.path.join(self.build_outputs_dir, constants.CONTEXT_FILES['system']))
-            if bindep_exists:
-                relative_bindep_path = os.path.join(constants.user_content_subfolder, constants.CONTEXT_FILES['system'])
-                self.steps.append(f"COPY {relative_bindep_path} {constants.CONTEXT_FILES['system']}")
-                introspect_cmd += f" --user-bindep={constants.CONTEXT_FILES['system']}"
+                exclude_req_file = f"exclude-{req_file}"
+
+                if self._add_copy_for_file(exclude_req_file):
+                    introspect_cmd += f" {exc_option}={exclude_req_file}"
+
+            if self._add_copy_for_file(constants.EXCL_COLLECTIONS_FILENAME):
+                introspect_cmd += f" --exclude-collection-reqs={constants.EXCL_COLLECTIONS_FILENAME}"
 
             introspect_cmd += " --write-bindep=/tmp/src/bindep.txt --write-pip=/tmp/src/requirements.txt"
 

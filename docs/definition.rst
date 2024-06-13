@@ -50,6 +50,11 @@ Here is a sample version 3 EE file. To use Ansible Builder 3.x, you must specify
         - six
         - psutil
       system: bindep.txt
+      exclude:
+        python:
+          - docker
+        system:
+          - python3-Cython
 
     images:
       base_image:
@@ -232,9 +237,19 @@ The following keys are valid for this section:
       ``requirements.yml`` file (see below for examples). Read more about
       the requirements file format in the `Galaxy user guide <https://docs.ansible.com/ansible/latest/galaxy/user_guide.html#install-multiple-collections-with-a-requirements-file>`_.
 
+    .. _python-pep508:
+
     ``python``
       The Python installation requirements. This may either be a filename, or a
       list of requirements (see below for an example).
+
+      .. note::
+
+        Python requirement specifications are expected to be limited to features defined by
+        `PEP 508 <https://peps.python.org/pep-0508/>`_. Hash tag comments will always be allowed.
+        Any deviation from this specification will be passed through to pip unverified and unaltered,
+        although this is considered undefined and unsupported behavior. It is not recommended that
+        you depend on this behavior.
 
     ``python_interpreter``
       A dictionary that defines the Python system package name to be installed by
@@ -244,6 +259,57 @@ The following keys are valid for this section:
     ``system``
       The system packages to be installed, in bindep format. This may either
       be a filename, or a list of requirements (see below for an example).
+
+    ``exclude``
+      A dictionary defining the Python or system requirements to be excluded from the top-level dependency
+      requirements of referenced collections. These exclusions will not apply to the user supplied Python or
+      system dependencies, nor will they apply to dependencies of dependencies (top-level only).
+
+      The following keys are valid for this section:
+
+        * ``python`` - A list of Python dependencies to be excluded.
+        * ``system`` - A list of system dependencies to be excluded.
+        * ``all_from_collections`` - If you want to exclude *all* Python and system dependencies from one or
+          more collections, supply a list of collection names under this key.
+
+      The exclusion feature supports two forms of matching:
+
+        * Simple name matching.
+        * Advanced name matching using regular expressions.
+
+      For simple name matching, you need only supply the name of the requirement/collection to match.
+      All values will be compared in a case-insensitive manner.
+
+      For advanced name matching, begin the exclusion string with the tilde (``~``) character to
+      indicate that the remaining portion of the string is a regular expression to be used to match
+      a requirement/collection name. The regex should be considered case-insensitive.
+
+      .. note::
+        The regular expression must match the full requirement/collection name. For example, ``~foo.``
+        does not fully match the name ``foobar``, but ``~foo.+`` does.
+
+      With both forms of matching, the exclusion string will be compared against the *simple* name of
+      any Python or system requirement. For example, if you need to exclude the system requirement that
+      appears as ``foo [!platform:gentoo]`` within an included collection, then your exclusion string should be
+      ``foo``. To exclude the Python requirement ``bar == 1.0.0``, your exclusion string would be ``bar``.
+
+      Example using both simple and advanced matching:
+
+      .. code:: yaml
+
+        dependencies:
+            exclude:
+                python:
+                    - docker
+                system:
+                    - python3-Cython
+                all_from_collections:
+                    # Regular expression to exclude all from community collections
+                    - ~community\..+
+
+      .. note::
+        The ``exclude`` option requires ``ansible-builder`` version ``3.1`` or newer.
+
 
 The following example uses filenames that contain various dependencies:
 

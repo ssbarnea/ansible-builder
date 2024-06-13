@@ -51,9 +51,9 @@ def test_prepare_galaxy_install_steps(build_dir_and_ee_yml):
     c._prepare_galaxy_install_steps()
     expected = [
         f"RUN ansible-galaxy role install $ANSIBLE_GALAXY_CLI_ROLE_OPTS "
-        f"-r {constants.CONTEXT_FILES['galaxy']} --roles-path \"{constants.base_roles_path}\"",
+        f"-r {constants.STD_GALAXY_FILENAME} --roles-path \"{constants.base_roles_path}\"",
         f"RUN ANSIBLE_GALAXY_DISABLE_GPG_VERIFY=1 ansible-galaxy collection install "
-        f"$ANSIBLE_GALAXY_CLI_COLLECTION_OPTS -r {constants.CONTEXT_FILES['galaxy']} "
+        f"$ANSIBLE_GALAXY_CLI_COLLECTION_OPTS -r {constants.STD_GALAXY_FILENAME} "
         f"--collections-path \"{constants.base_collections_path}\""
     ]
     assert c.steps == expected
@@ -69,9 +69,9 @@ def test_prepare_galaxy_install_steps_with_keyring(build_dir_and_ee_yml):
     c._prepare_galaxy_install_steps()
     expected = [
         f"RUN ansible-galaxy role install $ANSIBLE_GALAXY_CLI_ROLE_OPTS "
-        f"-r {constants.CONTEXT_FILES['galaxy']} --roles-path \"{constants.base_roles_path}\"",
+        f"-r {constants.STD_GALAXY_FILENAME} --roles-path \"{constants.base_roles_path}\"",
         f"RUN ansible-galaxy collection install $ANSIBLE_GALAXY_CLI_COLLECTION_OPTS "
-        f"-r {constants.CONTEXT_FILES['galaxy']} "
+        f"-r {constants.STD_GALAXY_FILENAME} "
         f"--collections-path \"{constants.base_collections_path}\" --keyring \"{constants.default_keyring_name}\""
     ]
     assert c.steps == expected
@@ -90,9 +90,9 @@ def test_prepare_galaxy_install_steps_with_sigcount(build_dir_and_ee_yml):
     c._prepare_galaxy_install_steps()
     expected = [
         f"RUN ansible-galaxy role install $ANSIBLE_GALAXY_CLI_ROLE_OPTS "
-        f"-r {constants.CONTEXT_FILES['galaxy']} --roles-path \"{constants.base_roles_path}\"",
+        f"-r {constants.STD_GALAXY_FILENAME} --roles-path \"{constants.base_roles_path}\"",
         f"RUN ansible-galaxy collection install $ANSIBLE_GALAXY_CLI_COLLECTION_OPTS "
-        f"-r {constants.CONTEXT_FILES['galaxy']} "
+        f"-r {constants.STD_GALAXY_FILENAME} "
         f"--collections-path \"{constants.base_collections_path}\" "
         f"--required-valid-signature-count {sig_count} --keyring \"{constants.default_keyring_name}\""
     ]
@@ -112,9 +112,9 @@ def test_prepare_galaxy_install_steps_with_ignore_code(build_dir_and_ee_yml):
     c._prepare_galaxy_install_steps()
     expected = [
         f"RUN ansible-galaxy role install $ANSIBLE_GALAXY_CLI_ROLE_OPTS "
-        f"-r {constants.CONTEXT_FILES['galaxy']} --roles-path \"{constants.base_roles_path}\"",
+        f"-r {constants.STD_GALAXY_FILENAME} --roles-path \"{constants.base_roles_path}\"",
         f"RUN ansible-galaxy collection install $ANSIBLE_GALAXY_CLI_COLLECTION_OPTS "
-        f"-r {constants.CONTEXT_FILES['galaxy']} "
+        f"-r {constants.STD_GALAXY_FILENAME} "
         f"--collections-path \"{constants.base_collections_path}\" "
         f"--ignore-signature-status-code {codes[0]} --ignore-signature-status-code {codes[1]} "
         f"--keyring \"{constants.default_keyring_name}\""
@@ -329,3 +329,45 @@ def test_v2_builder_image_default(build_dir_and_ee_yml):
     c.prepare()
     assert "FROM base as builder" in c.steps
     assert "COPY _build/scripts/pip_install /output/scripts/pip_install" not in c.steps
+
+
+def test_prepare_introspect_assemble_steps(build_dir_and_ee_yml):
+    """
+    Test that the introspect command is built as expected.
+    """
+
+    ee_data = """
+    version: 3
+    images:
+      base_image:
+        name: quay.io/user/mycustombaseimage:latest
+    dependencies:
+        python:
+           - six
+        system:
+           - git
+        galaxy:
+           collections:
+              - name: community.windows
+        exclude:
+           python:
+             - aaa
+           system:
+             - bbb
+           all_from_collections:
+             - a.b
+    """
+
+    tmpdir, ee_path = build_dir_and_ee_yml(ee_data)
+    c = make_containerfile(tmpdir, ee_path, run_validate=True)
+    c._create_folder_copy_files()
+    c._prepare_introspect_assemble_steps()
+
+    expected_introspect_command = "RUN $PYCMD /output/scripts/introspect.py introspect" \
+                                  f" --user-pip={constants.STD_PIP_FILENAME}" \
+                                  f" --exclude-pip-reqs=exclude-{constants.STD_PIP_FILENAME}" \
+                                  f" --user-bindep={constants.STD_BINDEP_FILENAME}" \
+                                  f" --exclude-bindep-reqs=exclude-{constants.STD_BINDEP_FILENAME}" \
+                                  f" --exclude-collection-reqs={constants.EXCL_COLLECTIONS_FILENAME}" \
+                                  " --write-bindep=/tmp/src/bindep.txt --write-pip=/tmp/src/requirements.txt"
+    assert expected_introspect_command in c.steps

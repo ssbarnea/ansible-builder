@@ -32,16 +32,16 @@ else:
 default_keyring_name = 'keyring.gpg'
 default_policy_file_name = 'policy.json'
 
+EXCL_COLLECTIONS_FILENAME = 'exclude-collections.txt'
+STD_BINDEP_FILENAME = 'bindep.txt'
+STD_GALAXY_FILENAME = 'requirements.yml'
+STD_PIP_FILENAME = 'requirements.txt'
+
 # Files that need to be moved into the build context, and their naming inside the context
 CONTEXT_FILES = {
-    # HACK: hacking in prototype other kinds of deps for dynamic builder
-    'python_interpreter': '',
-    'ansible_core': '',
-    'ansible_runner': '',
-
-    'galaxy': 'requirements.yml',
-    'python': 'requirements.txt',
-    'system': 'bindep.txt',
+    'galaxy': STD_GALAXY_FILENAME,
+    'python': STD_PIP_FILENAME,
+    'system': STD_BINDEP_FILENAME,
 }
 
 FINAL_IMAGE_BIN_PATH = "/opt/builder/bin"
