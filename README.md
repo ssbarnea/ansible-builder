@@ -14,14 +14,12 @@ https://ansible-builder.readthedocs.io/en/stable/
 
 ## Get Involved:
 
+* We welcome your feedback, questions and ideas.
+  See our [Communication guide](https://ansible.readthedocs.io/projects/builder/en/latest/community/)
+  to learn how to join the conversation.
 * We use [GitHub issues](https://github.com/ansible/ansible-builder/issues) to
-  track bug reports and feature ideas
-* Want to contribute, check out our [guide](CONTRIBUTING.md)
-* Join us in the `#ansible-builder` channel on Libera.chat IRC
-* For the full list of Ansible email Lists, IRC channels and working groups,
-  check out the [Ansible Mailing
-  lists](https://docs.ansible.com/ansible/latest/community/communication.html#mailing-list-information)
-  page of the official Ansible documentation.
+  track bug reports and feature ideas.
+* Want to contribute, check out our [guide](CONTRIBUTING.md).
 
 ## Code of Conduct
 
@@ -29,7 +27,7 @@ We ask all of our community members and contributors to adhere to the [Ansible
 code of
 conduct](http://docs.ansible.com/ansible/latest/community/code_of_conduct.html). If
 you have questions, or need assistance, please reach out to our community team
-at [codeofconduct@ansible.com](mailto:codeofconduct@ansible.com)
+at [codeofconduct@ansible.com](mailto:codeofconduct@ansible.com).
 
 ## License
 

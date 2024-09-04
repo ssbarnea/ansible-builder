@@ -14,6 +14,10 @@ These containers are known as execution environments. You can use them on AWX or
 You can design and distribute specialized execution environments for your Ansible content, choosing the versions of Python and
 ansible-core you want, and installing only the Python packages, system packages, and Ansible collections you need for your tasks.
 
+.. note::
+
+  Need help or want to discuss Ansible Builder including the documentation? See the :ref:`Community guide<community>` to learn how to join the conversation!
+
 .. contents::
    :local:
 
@@ -105,6 +109,7 @@ Collection maintainers can learn to correctly declare dependencies for their col
    :caption: Contents:
 
    self
+   community
    installation
    definition
    usage
