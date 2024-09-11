@@ -1,7 +1,8 @@
 # Ansible Builder Contributing Guidelines
 
-If you have questions about this document or anything not covered here, come
-chat with us at `#ansible-builder` on irc.libera.chat.
+If you are looking for community support, please visit
+the [Community guide](https://ansible.readthedocs.io/projects/builder/en/latest/community/)
+for information on how to get in touch.
 
 ## Things to Know Before Submitting Code
 

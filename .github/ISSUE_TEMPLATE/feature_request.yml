@@ -10,11 +10,9 @@ body:
       value: |
         **Thank you for suggesting a new feature for Ansible Builder.**
 
-        If you are looking for community support, please reach out on IRC:
-
-          [#ansible](https://web.libera.chat/#ansible)
-          [#ansible-builder](https://web.libera.chat/#ansible-builder)
-
+        If you are looking for community support, please visit
+        the [Community guide](https://ansible.readthedocs.io/projects/builder/en/latest/community/)
+        for information on how to get in touch.
 
   - type: textarea
     attributes:
