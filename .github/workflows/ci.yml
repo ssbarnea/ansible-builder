@@ -8,7 +8,7 @@ on:
 jobs:
   sanity:
     name: ${{ matrix.test.name }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     env:
       TOXENV: ${{ matrix.test.tox_env }}
 
@@ -17,7 +17,7 @@ jobs:
       matrix:
         test:
           - name: Lint
-            tox_env: linters-py310
+            tox_env: linters-py312
 
           - name: Docs
             tox_env: docs
@@ -28,8 +28,7 @@ jobs:
 
       - name: Install tox
         run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install tox
+          sudo apt-get install -q -y tox python3-pip
 
       - name: Create tox environment
         run: tox --notest
@@ -38,7 +37,7 @@ jobs:
         run: tox --skip-pkg-install
 
   integration:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     name: Integration - ${{ matrix.py_version.name }}
 
     env:
@@ -88,7 +87,7 @@ jobs:
 
   unit:
     name: Unit - ${{ matrix.py_version.name}}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     env:
       TOXENV: ${{ matrix.py_version.tox_env }}
 
@@ -123,8 +122,7 @@ jobs:
 
       - name: Install tox
         run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install tox
+          sudo apt-get install -q -y tox python3-pip
 
       - name: Create tox environment
         run: tox --notest
